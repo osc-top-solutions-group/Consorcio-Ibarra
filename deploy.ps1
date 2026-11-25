@@ -1,12 +1,14 @@
 # Despliegue del Gestor Documental a Cloud Run: UN solo servicio, público, sin
 # IAP y sin balanceador, dentro de la capa gratuita.
 #
-#   .\deploy.ps1                      # construye en Cloud Build y despliega
+#   .\deploy.ps1                      # construye la imagen con Docker local, la sube y despliega
 #   .\deploy.ps1 -Proyecto otro-id    # a otro proyecto (el cliente, por ejemplo)
+#   .\deploy.ps1 -CloudBuild          # sin Docker local: construye en Cloud Build (--source)
 #
-# Requiere: gcloud autenticado, el proyecto con facturación vinculada y la
-# infraestructura creada (infra\crear-infraestructura.ps1). Ejecutar desde
-# PowerShell en la raíz del repositorio.
+# Requiere: gcloud autenticado, Docker Desktop (salvo -CloudBuild), el proyecto
+# con facturación vinculada y la infraestructura creada
+# (infra\crear-infraestructura.ps1). Ejecutar desde PowerShell en la raíz.
+# La primera vez: gcloud auth configure-docker us-central1-docker.pkg.dev
 #
 # POR QUÉ --no-invoker-iam-check Y NO --allow-unauthenticated: la política de
 # la organización (iam.allowedPolicyMemberDomains) prohíbe el binding a
@@ -19,7 +21,8 @@
 param(
   [string] $Proyecto = 'gad-ibarra-documental',
   [string] $Region = 'us-central1',
-  [string] $Servicio = 'gestor-documental'
+  [string] $Servicio = 'gestor-documental',
+  [switch] $CloudBuild
 )
 
 $ErrorActionPreference = 'Stop'
@@ -64,8 +67,19 @@ try {
   )
 
   Write-Host "Desplegando $Servicio en $Proyecto ($Region) · commit $sha" -ForegroundColor Cyan
-  gcloud run deploy $Servicio `
-    --source . `
+  if ($CloudBuild) { $origen = @('--source', '.') }
+  else {
+    $imagen = "$Region-docker.pkg.dev/$Proyecto/cloud-run-source-deploy/${Servicio}:${sha}-$(Get-Date -Format 'yyyyMMddHHmm')"
+    # docker escribe su progreso por stderr: sin esto PowerShell lo trata como error.
+    $ErrorActionPreference = 'Continue'
+    & docker build --platform linux/amd64 -t $imagen . 2>&1 | ForEach-Object { "$_" }
+    if ($LASTEXITCODE -ne 0) { throw 'docker build falló' }
+    & docker push $imagen 2>&1 | ForEach-Object { "$_" }
+    if ($LASTEXITCODE -ne 0) { throw 'docker push falló (¿gcloud auth configure-docker?)' }
+    $ErrorActionPreference = 'Stop'
+    $origen = @('--image', $imagen)
+  }
+  gcloud run deploy $Servicio @origen `
     --region $Region --project $Proyecto `
     --port 8080 --cpu 1 --memory 512Mi `
     --concurrency 80 --min-instances 0 --max-instances 2 --timeout 300 --cpu-boost `

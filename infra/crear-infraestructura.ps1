@@ -69,4 +69,9 @@ if ($LASTEXITCODE -eq 0) { Hecho 'roles/datastore.user (Firestore)' }
 gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" --member "serviceAccount:$SA" --role roles/storage.objectAdmin --format=none 2>$null
 if ($LASTEXITCODE -eq 0) { Hecho 'roles/storage.objectAdmin sobre el bucket' } else { Aviso 'el bucket no existe todavía' }
 
+Paso 6 'Cloud Build: la cuenta de Compute construye las imágenes (sin permisos automáticos en proyectos nuevos)'
+$numero = gcloud projects describe $Proyecto --format 'value(projectNumber)'
+gcloud projects add-iam-policy-binding $Proyecto --member "serviceAccount:$numero-compute@developer.gserviceaccount.com" --role roles/cloudbuild.builds.builder --condition=None --format=none 2>$null
+if ($LASTEXITCODE -eq 0) { Hecho 'roles/cloudbuild.builds.builder' }
+
 Write-Host "`nListo. Siguiente: .\deploy.ps1 -Proyecto $Proyecto" -ForegroundColor Green

@@ -119,8 +119,10 @@ Proyecto GCP: **`gad-ibarra-documental`** (organización de OSC, creado el
 #    Firestore (default), bucket y cuenta de servicio
 .\infra\crear-infraestructura.ps1 -CuentaFacturacion XXXXXX-XXXXXX-XXXXXX
 
-# 2. Cada despliegue (Cloud Build construye la imagen; no requiere Docker local)
+# 2. Cada despliegue: Docker local construye la imagen, la sube a Artifact
+#    Registry y la despliega (una vez: gcloud auth configure-docker us-central1-docker.pkg.dev)
 .\deploy.ps1
+#    Sin Docker local: .\deploy.ps1 -CloudBuild (construye en Cloud Build)
 
 # 3. Primera vez: sembrar la raíz de la demostración
 cd backend; $env:SGC_ROOT='sgc'; npm run seed; Remove-Item Env:SGC_ROOT
@@ -129,6 +131,9 @@ cd backend; $env:SGC_ROOT='sgc'; npm run seed; Remove-Item Env:SGC_ROOT
 `deploy.ps1` imprime la URL `https://gestor-documental-….run.app`. La primera
 corrida deja `APP_BASE_URL` apuntando a localhost (la URL no existe todavía):
 ejecútelo una segunda vez para fijarla.
+
+URL actual de la demostración: **https://gestor-documental-2txlkvb5sq-uc.a.run.app**
+(desplegada el 2026-11-25). Repositorio: https://github.com/osc-top-solutions-group/Consorcio-Ibarra
 
 **Por qué es público sin `--allow-unauthenticated`**: la política de la
 organización prohíbe `allUsers`; el servicio se despliega con
