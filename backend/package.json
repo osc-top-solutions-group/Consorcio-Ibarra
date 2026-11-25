@@ -1,0 +1,24 @@
+{
+  "name": "gestor-documental-backend",
+  "private": true,
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=24.22.1 <25"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "seed": "node seed/seed.js",
+    "reindexar": "node seed/seed.js --reindexar",
+    "test": "node pruebas/requerimientos.js && node pruebas/ciclo-vida.js && node pruebas/flujo-avanzado.js && node pruebas/accesos-y-formularios.js && node pruebas/almacenamiento-correo-codigos.js && node pruebas/vigencia-y-audiencia.js && node pruebas/confidencialidad.js && node pruebas/catalogos.js"
+  },
+  "dependencies": {
+    "@google-cloud/storage": "^7.21.0",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "dotenv": "^17.4.2",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.5.1",
+    "firebase-admin": "^14.2.0",
+    "multer": "^1.4.5-lts.1"
+  }
+}

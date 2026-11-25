@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+*.bak
+backend/node_modules/
+backend/tmp_uploads/
+backend/data/
+*.log

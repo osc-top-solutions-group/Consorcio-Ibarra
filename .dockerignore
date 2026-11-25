@@ -1,0 +1,13 @@
+.git
+node_modules
+dist
+backend/node_modules
+backend/data
+backend/tmp_uploads
+backend/pruebas
+.env
+.env.*
+!.env.example
+backend/.env
+*.log
+*.md

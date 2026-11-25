@@ -1,0 +1,16 @@
+# Contexto que sube `gcloud run deploy --source .` a Cloud Build. Espejo de
+# .dockerignore: sin esto subiría node_modules y los datos locales.
+.git
+.gitignore
+node_modules
+dist
+backend/node_modules
+backend/data
+backend/tmp_uploads
+backend/pruebas
+.env
+.env.*
+!.env.example
+backend/.env
+*.log
+*.md
