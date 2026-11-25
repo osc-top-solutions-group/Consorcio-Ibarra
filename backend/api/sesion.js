@@ -16,6 +16,7 @@ const catalogos = require('../core/config/catalogos');
 const empleados = require('../core/empleados');
 const { emitirCookie, borrarCookie } = require('../lib/sesion');
 const { auditar } = require('../lib/audit');
+const claves = require('../lib/claves');
 
 const router = express.Router();
 const CORREO_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -52,7 +53,7 @@ router.post('/', limite, async (req, res) => {
     if (correoPedido) {
       const usuario = (await catalogos.leer('usuarios')).find((u) => u.correo === correoPedido);
       if (usuario) {
-        if (usuario.clave && String(body.clave || '') !== String(usuario.clave)) {
+        if (usuario.clave && !claves.verificar(body.clave, usuario.clave)) {
           return res.status(403).json({ error: 'La clave no es correcta' });
         }
         emitirCookie(res, usuario.correo);

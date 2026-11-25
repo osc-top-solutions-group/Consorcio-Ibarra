@@ -73,7 +73,7 @@ const RAIZ = process.env.SGC_ROOT || (process.env.K_SERVICE ? 'sgc' : 'sgc_dev')
 // transaccionales (registros, hallazgos, acciones, mediciones, evidencias) no
 // entran nunca: esos se leen con page(), contar(), query() o recorrer().
 const CATALOGOS_LISTABLES = new Set([
-  'procesos', 'tipos_documento', 'sedes', 'normas', 'cargos', 'grupos',
+  'procesos', 'tipos_proceso', 'tipos_documento', 'sedes', 'normas', 'cargos', 'grupos',
   'plantillas', 'definiciones', 'parametros', 'accesos', 'formularios',
   // Personas de esta instalación (reemplaza al directorio corporativo): decenas de filas.
   'usuarios'
@@ -113,6 +113,7 @@ function contabilizar(coleccion, cantidad) {
 const AMBITOS = {
   // Transversales del SGC
   procesos: 'core',
+  tipos_proceso: 'core',
   tipos_documento: 'core',
   sedes: 'core',
   normas: 'core',

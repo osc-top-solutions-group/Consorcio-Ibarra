@@ -4,13 +4,14 @@ import { X, FileText, ArrowRight, Loader2 } from 'lucide-react';
 import CadenaValor from '../components/CadenaValor.jsx';
 import { api, catalogo, ESTADOS, fechaCorta } from '@/shared/api';
 
-// Mapa de procesos como cadena de valor, al estilo del que la compañía usa hoy:
-// anillo central con los tres tipos de proceso, ciclos de innovación y
+// Mapa de procesos como cadena de valor: anillo central con un sector por cada
+// grupo del catálogo «Cadena de valor» (tipos_proceso), ciclos de innovación y
 // conocimiento, y los procesos desplegados a los lados con sus subprocesos.
-// Todo se arma desde el catálogo de procesos, así que Configuración lo mantiene
-// sin tocar código.
+// Todo se arma desde los catálogos, así que Configuración lo mantiene sin
+// tocar código: agregar «Procesos de Asesoría» es una fila más.
 export default function MapaProcesos() {
   const [procesos, setProcesos] = useState([]);
+  const [tipos, setTipos] = useState([]);
   // El resaltado por paso del ratón y el fijado con clic se guardan aparte, para
   // que salir con el ratón no borre el sector que el usuario dejó seleccionado.
   const [tipoHover, setTipoHover] = useState(null);
@@ -22,34 +23,37 @@ export default function MapaProcesos() {
   const tipoActivo = tipoHover || tipoFijado;
 
   useEffect(() => {
-    api('/documental/mapa-procesos')
-      .then(setProcesos)
+    Promise.all([api('/documental/mapa-procesos'), catalogo('tipos_proceso')])
+      .then(([lista, cat]) => { setProcesos(lista); setTipos(cat); })
       .catch((e) => setError(e.message))
       .finally(() => setCargando(false));
   }, []);
 
-  const porTipo = useMemo(() => {
+  // Una columna por grupo del catálogo, con sus procesos ordenados. Un proceso
+  // cuyo grupo ya no exista en el catálogo no se pierde: va a «Sin clasificar».
+  const columnas = useMemo(() => {
     const orden = (a, b) => (a.orden ?? 99) - (b.orden ?? 99) || a.nombre.localeCompare(b.nombre, 'es');
-    return {
-      estrategico: procesos.filter((p) => p.tipo === 'estrategico').sort(orden),
-      misional: procesos.filter((p) => p.tipo === 'misional').sort(orden),
-      apoyo: procesos.filter((p) => p.tipo === 'apoyo').sort(orden)
-    };
-  }, [procesos]);
+    const conocidos = new Set(tipos.map((t) => t.id));
+    const lista = tipos.map((t) => ({
+      tipo: t.id, titulo: t.nombre, procesos: procesos.filter((p) => p.tipo === t.id).sort(orden)
+    }));
+    const huerfanos = procesos.filter((p) => !conocidos.has(p.tipo)).sort(orden);
+    if (huerfanos.length) lista.push({ tipo: '_otros', titulo: 'Sin clasificar', procesos: huerfanos });
+    return lista;
+  }, [procesos, tipos]);
 
   const total = procesos.reduce((n, p) => n + p.documentos.total, 0);
 
-  const columnas = {
-    estrategico: { titulo: 'Estratégicos', procesos: porTipo.estrategico },
-    misional: { titulo: 'Misionales', procesos: porTipo.misional },
-    apoyo: { titulo: 'Soporte', procesos: porTipo.apoyo }
-  };
+  // Composición de escritorio: los grupos se alternan a los lados del anillo
+  // (segundo y cuarto a la izquierda; primero y tercero a la derecha), que con
+  // tres grupos reproduce el mapa clásico: operativos solos a la izquierda.
+  const izquierda = columnas.filter((_, i) => i % 2 === 1);
+  const derecha = columnas.filter((_, i) => i % 2 === 0);
 
   // `conector` dibuja la línea que une el corchete del grupo con el anillo; solo
   // aplica en la composición de escritorio, donde el anillo está al lado.
-  const propsColumna = (tipo, lado, conector = false) => ({
-    ...columnas[tipo],
-    tipo,
+  const propsColumna = (columna, lado, conector = false) => ({
+    ...columna,
     lado,
     conector,
     activo: tipoActivo,
@@ -86,29 +90,26 @@ export default function MapaProcesos() {
               El anillo lleva ancho explícito: dentro de un flex, un SVG con
               ancho relativo se encoge hasta quedar minúsculo. */}
           <div className="mx-auto hidden min-h-[calc(100vh-13rem)] max-w-[1500px] items-center justify-center gap-2 xl:flex">
-            <div className="flex-1">
-              <Columna {...propsColumna('misional', 'izquierda', true)} />
+            <div className="flex-1 space-y-9">
+              {izquierda.map((c) => <Columna key={c.tipo} {...propsColumna(c, 'izquierda', true)} />)}
             </div>
 
             <div className="w-[540px] shrink-0">
-              <CadenaValor activo={tipoActivo} onSeleccionar={setTipoFijado} />
+              <CadenaValor tipos={tipos} activo={tipoActivo} onSeleccionar={setTipoFijado} />
             </div>
 
             <div className="flex-1 space-y-9">
-              <Columna {...propsColumna('estrategico', 'derecha', true)} />
-              <Columna {...propsColumna('apoyo', 'derecha', true)} />
+              {derecha.map((c) => <Columna key={c.tipo} {...propsColumna(c, 'derecha', true)} />)}
             </div>
           </div>
 
           {/* Composición compacta: el anillo arriba y los procesos apilados. */}
           <div className="space-y-6 xl:hidden">
             <div className="mx-auto w-full max-w-[460px]">
-              <CadenaValor activo={tipoActivo} onSeleccionar={setTipoFijado} />
+              <CadenaValor tipos={tipos} activo={tipoActivo} onSeleccionar={setTipoFijado} />
             </div>
-            <div className="grid gap-6 md:grid-cols-3">
-              <Columna {...propsColumna('estrategico', 'derecha')} />
-              <Columna {...propsColumna('misional', 'derecha')} />
-              <Columna {...propsColumna('apoyo', 'derecha')} />
+            <div className={`grid gap-6 ${columnas.length >= 4 ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-3'}`}>
+              {columnas.map((c) => <Columna key={c.tipo} {...propsColumna(c, 'derecha')} />)}
             </div>
           </div>
         </>

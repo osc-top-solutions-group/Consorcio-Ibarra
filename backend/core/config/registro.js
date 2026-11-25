@@ -72,6 +72,34 @@ const CATALOGOS = [
     }]
   },
   {
+    id: 'tipos_proceso',
+    etiqueta: 'Cadena de valor',
+    singular: 'tipo de proceso',
+    modulo: 'global',
+    usadoPor: TODOS_LOS_MODULOS,
+    editor: 'simple',
+    idDeNegocio: true,
+    idDesde: 'codigo',
+    descripcion: 'Los grupos de la cadena de valor en que se clasifica cada proceso (estratégicos, operativos, de apoyo, de asesoría…).',
+    campos: [
+      { clave: 'codigo', etiqueta: 'Código', requerido: true, maxLength: 12, mayusculas: true, tamano: 'corto' },
+      { clave: 'nombre', etiqueta: 'Nombre', requerido: true, tamano: 'largo' },
+      { clave: 'etiqueta', etiqueta: 'Etiqueta en el mapa (corta)', tamano: 'medio' },
+      { clave: 'orden', etiqueta: 'Orden', maxLength: 3, tamano: 'corto' }
+    ],
+    avisos: [
+      {
+        tono: 'info',
+        texto: 'Cada proceso se clasifica en uno de estos grupos (catálogo de Procesos › Cadena de valor). ' +
+          'El mapa de procesos dibuja un sector del anillo por cada grupo, en este orden, con la etiqueta corta.'
+      },
+      {
+        tono: 'alerta',
+        texto: 'Antes de inactivar un grupo, reclasifique los procesos que lo usan: si no, quedan fuera del mapa.'
+      }
+    ]
+  },
+  {
     id: 'sedes',
     etiqueta: 'Sedes / países',
     singular: 'sede',
@@ -158,13 +186,14 @@ const CATALOGOS = [
       { clave: 'area', etiqueta: 'Área', tamano: 'medio' },
       { clave: 'sedeId', etiqueta: 'Sede (id del catálogo de sedes: ecu)', maxLength: 3, tamano: 'corto' },
       { clave: 'descripcion', etiqueta: 'Descripción en la pantalla de ingreso', tamano: 'largo', secundario: true },
-      { clave: 'clave', etiqueta: 'Clave de ingreso (opcional)', tamano: 'corto', secundario: true }
+      { clave: 'clave', etiqueta: 'Clave de ingreso (vacía: no cambia · «-»: quitarla)', tamano: 'medio', secundario: true }
     ],
     avisos: [
       {
         tono: 'info',
         texto: 'Esta instalación no tiene login: en la pantalla de ingreso cada persona elige con quién entra. ' +
           'Quien tenga una clave aquí tendrá que escribirla; quien no, entra con solo elegirse. ' +
+          'La clave se guarda cifrada y no se vuelve a mostrar: «••••» indica que la persona tiene una. ' +
           'Los permisos (administrador, líder de proceso, aprobador) se reparten en Gestión de Accesos con el correo.'
       },
       {

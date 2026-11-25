@@ -25,14 +25,18 @@ const R_ETIQUETA = (R_INTERNO + R_EXTERNO) / 2;
 const R_CICLO = 178;
 const R_TEXTO_CICLO = 200;
 
-// Los sectores se reparten para que cada etiqueta caiga donde está en el mapa
-// que usa hoy la compañía: Estratégicos arriba a la derecha, Soporte abajo a la
-// derecha y Misionales ocupando todo el costado izquierdo.
-const SECTORES = [
-  { tipo: 'estrategico', etiqueta: 'Estratégicos', desde: -2, hasta: 90 },
-  { tipo: 'apoyo', etiqueta: 'Soporte', desde: 92, hasta: 184 },
-  { tipo: 'misional', etiqueta: 'Misionales', desde: 186, hasta: 358 }
-];
+// Los sectores salen del catálogo «Cadena de valor» (tipos_proceso): uno por
+// grupo, del mismo tamaño, en el orden del catálogo y en sentido horario desde
+// las 12, con 2° de separación entre sectores.
+const SEPARACION = 2;
+function repartir(tipos) {
+  const n = Math.max(tipos.length, 1);
+  const tamano = (360 - SEPARACION * n) / n;
+  return tipos.map((t, i) => {
+    const desde = i * (tamano + SEPARACION);
+    return { tipo: t.id, etiqueta: t.etiqueta || t.nombre, desde, hasta: desde + tamano };
+  });
+}
 
 function punto(r, grados) {
   const rad = (grados * Math.PI) / 180;
@@ -82,7 +86,8 @@ function Flecha({ grados }) {
   );
 }
 
-export default function CadenaValor({ activo, onSeleccionar }) {
+export default function CadenaValor({ tipos = [], activo, onSeleccionar }) {
+  const SECTORES = repartir(tipos);
   // La página monta este componente dos veces (composición amplia y compacta,
   // una oculta por CSS). Con ids fijos, `url(#...)` resolvería contra el SVG
   // oculto y el degradado del anillo no se pintaría: useId los hace únicos.
@@ -94,7 +99,7 @@ export default function CadenaValor({ activo, onSeleccionar }) {
 
   return (
     <svg viewBox={`0 0 ${LADO} ${LADO}`} className="block h-auto w-full" role="img"
-      aria-label="Cadena de valor: procesos estratégicos, misionales y de soporte">
+      aria-label={`Cadena de valor: ${SECTORES.map((s) => s.etiqueta).join(', ')}`}>
       <defs>
         <linearGradient id={idAnillo} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="#000086" />
@@ -143,7 +148,7 @@ export default function CadenaValor({ activo, onSeleccionar }) {
       })}
 
       {SECTORES.map((s) => (
-        <text key={s.tipo} className="pointer-events-none fill-white text-[16px] font-bold" letterSpacing="1.8">
+        <text key={s.tipo} className={`pointer-events-none fill-white font-bold ${SECTORES.length > 4 ? 'text-[13px]' : 'text-[16px]'}`} letterSpacing={SECTORES.length > 4 ? '0.8' : '1.8'}>
           <textPath href={`#${idSector(s.tipo)}`} startOffset="50%" textAnchor="middle">
             {s.etiqueta}
           </textPath>

@@ -181,7 +181,7 @@ Un documento obsoleto **deja de existir para el colaborador** —ni lo ve en el 
 
 | Apartado | Para qué |
 |---|---|
-| **Mapa de Procesos** | La cadena de valor de la organización: procesos estratégicos, misionales y de apoyo, con sus documentos |
+| **Mapa de Procesos** | La cadena de valor de la organización (estratégicos, operativos, de apoyo, de asesoría… según el catálogo «Cadena de valor» de Configuración), con los documentos de cada proceso |
 | **Documentos Externos** | Normas, leyes, manuales de proveedor y demás documentación que la organización no produce pero debe controlar: identificación, versión, origen y fecha de implementación |
 | **Solicitudes** | Para pedir un documento nuevo, un cambio a uno existente o su baja. Se indica el documento y el proceso; el responsable recibe el pendiente |
 | **Obsoletos** | Repositorio histórico. Solo visible para quien administra documentación |

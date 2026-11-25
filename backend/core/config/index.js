@@ -24,6 +24,7 @@ const catalogos = require('./catalogos');
 const registro = require('./registro');
 const destinatarios = require('./destinatarios');
 const empleados = require('../empleados');
+const claves = require('../../lib/claves');
 
 // La escritura exige el recurso de configuración, administrado desde el panel
 // de accesos (ya no un rol cableado en código).
@@ -160,10 +161,15 @@ function normalizarProceso(body) {
 // correo tal como se tecleó; aquí se normaliza y se deriva el id.
 function normalizarUsuario(body) {
   if (!body) return body;
+  // Solo se normaliza lo que viene: un PUT parcial (p. ej. solo la clave) no
+  // debe vaciar el correo ni el nombre de la fila.
   const correo = String(body.correo || body.id || '').trim().toLowerCase();
-  const salida = { ...body, correo, nombre: String(body.nombre || '').trim() };
-  if (correo) salida.id = correo;
+  let salida = { ...body };
+  if (correo) { salida.correo = correo; salida.id = correo; }
+  if (body.nombre !== undefined) salida.nombre = String(body.nombre || '').trim();
   if (salida.sedeId !== undefined) salida.sedeId = String(salida.sedeId || '').trim().toLowerCase() || null;
+  // La clave se guarda cifrada; vacía u oculta no la toca; «-» la quita.
+  salida = claves.prepararClave(salida);
   return salida;
 }
 const CORREO_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -185,6 +191,10 @@ async function validarProceso(datos, { idActual = null } = {}) {
   if (!datos.codigo) throw httpError(400, 'La sigla del proceso es obligatoria');
   if (!/^[A-Z0-9]{2,6}$/.test(datos.codigo)) {
     throw httpError(400, `La sigla "${datos.codigo}" solo admite de 2 a 6 letras o números, sin espacios`);
+  }
+  const tipos = await catalogos.leer('tipos_proceso');
+  if (tipos.length && !tipos.some((t) => t.id === datos.tipo)) {
+    throw httpError(400, `La cadena de valor "${datos.tipo || ''}" no existe: elija una del catálogo Cadena de valor`);
   }
   const activos = await col('procesos').list((p) => p.activo !== false);
   const repetido = activos.find((p) =>
@@ -256,10 +266,24 @@ router.get('/:catalogo', validarCatalogo, manejar(async (req, res) => {
     if (!puede(req.usuario, 'sgc.configuracion') && !(exigido && puede(req.usuario, exigido))) {
       return res.status(403).json({ error: 'Ver los registros inactivos requiere el acceso de configuración' });
     }
-    return res.json(await catalogos.leerConInactivos(catalogo));
+    return res.json(sinClaves(catalogo, await catalogos.leerConInactivos(catalogo)));
   }
-  res.json(await catalogos.leer(catalogo));
+  res.json(sinClaves(catalogo, await catalogos.leer(catalogo)));
 }));
+
+// El catálogo de usuarios sale sin la clave de ingreso (solo si la tiene): lo
+// consume cualquier sesión, y la auditoría tampoco debe guardarla.
+function claves_fila(catalogo, fila) {
+  return catalogo === 'usuarios' ? claves.ocultar(fila) : fila;
+}
+function sinClaves(catalogo, filas) {
+  return catalogo === 'usuarios' ? filas.map(claves.ocultar) : filas;
+}
+function detalleAuditable(catalogo, body) {
+  if (catalogo !== 'usuarios' || !body) return body;
+  const { clave, ...resto } = body;
+  return clave === undefined ? resto : { ...resto, clave: '(no se registra)' };
+}
 
 router.post('/:catalogo', validarCatalogo, soloConfigOGlosario, manejar(async (req, res) => {
   const { catalogo } = req.params;
@@ -300,20 +324,25 @@ router.post('/:catalogo', validarCatalogo, soloConfigOGlosario, manejar(async (r
     const row = await col(catalogo).update(existente.id, { ...normalizar(catalogo, req.body), activo: true });
     catalogos.invalidar(catalogo);
     if (catalogo === 'parametros') invalidar();
-    await auditar(req.usuario.correo, 'config.reactivar', `${catalogo}/${existente.id}`, req.body);
-    return res.json({ ...row, reactivado: true });
+    await auditar(req.usuario.correo, 'config.reactivar', `${catalogo}/${existente.id}`, detalleAuditable(catalogo, req.body));
+    return res.json({ ...claves_fila(catalogo, row), reactivado: true });
   }
 
   const row = await col(catalogo).insert({ ...normalizar(catalogo, req.body), activo: true });
   catalogos.invalidar(catalogo);
   if (catalogo === 'parametros') invalidar();
-  await auditar(req.usuario.correo, 'config.crear', `${catalogo}/${row.id}`, req.body);
-  res.status(201).json(row);
+  await auditar(req.usuario.correo, 'config.crear', `${catalogo}/${row.id}`, detalleAuditable(catalogo, req.body));
+  res.status(201).json(claves_fila(catalogo, row));
 }));
 
 router.put('/:catalogo/:id', validarCatalogo, soloConfigOGlosario, manejar(async (req, res) => {
   const { catalogo, id } = req.params;
   let datos = normalizar(catalogo, req.body);
+  if (catalogo === 'usuarios') {
+    // El correo es el id de la fila: no se cambia editando (se crea otra persona).
+    delete datos.correo;
+    if (datos.nombre === '') return res.status(400).json({ error: 'El nombre es obligatorio' });
+  }
   if (catalogo === 'procesos') {
     // El id de un proceso existente no cambia al editar su sigla (los documentos
     // lo referencian por id); la sigla nueva sí se valida contra los demás.
@@ -323,10 +352,10 @@ router.put('/:catalogo/:id', validarCatalogo, soloConfigOGlosario, manejar(async
     await validarProceso({ ...actual, ...datos }, { idActual: id });
     delete datos.id;
   }
-  const row = await col(catalogo).update(id, datos);
+  const row = claves_fila(catalogo, await col(catalogo).update(id, datos));
   catalogos.invalidar(catalogo);
   if (catalogo === 'parametros') invalidar();
-  await auditar(req.usuario.correo, 'config.editar', `${catalogo}/${id}`, req.body);
+  await auditar(req.usuario.correo, 'config.editar', `${catalogo}/${id}`, detalleAuditable(catalogo, req.body));
   res.json(row);
 }));
 

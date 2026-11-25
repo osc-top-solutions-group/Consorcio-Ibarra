@@ -46,8 +46,15 @@ De arranque: **Cristian Moreno** y **Hernando Castellanos** son administradores 
 todos los procesos, documentos externos y glosario). Se cambian desde Gestión
 de Accesos; los datos de las personas, desde Configuración › Usuarios.
 
-La cookie de sesión va firmada (`SESION_SECRETO`) para que la clave opcional no
-se pueda saltar editando la cookie. Para pasar a un login real: reemplazar
+La **clave** se asigna en Configuración › Usuarios, en el campo «Clave de
+ingreso»: se guarda cifrada (sal + SHA-256) y no vuelve a mostrarse; la API y
+la auditoría solo exponen «••••» cuando la persona tiene una. Al editar la fila,
+dejar el campo vacío o con «••••» no la cambia; escribir «-» la quita. Quien no
+tiene clave entra con solo elegirse, así que **cada persona con permisos debe
+tener una** antes de compartir la URL.
+
+La cookie de sesión va firmada (`SESION_SECRETO`) para que la clave no se pueda
+saltar editando la cookie. Para pasar a un login real: reemplazar
 `backend/lib/sesion.js` (quien pone `req.usuario` a partir de la petición) y la
 pantalla `src/modules/inicio/pages/Ingreso.jsx`; nada más depende de cómo se
 autentica.
@@ -153,8 +160,8 @@ proyecto elimina todo.
 ### Seguridad de una URL pública
 
 No hay autenticación: cualquiera con la URL entra como visitante y ve lo
-vigente. Asigne una **clave** a Hernando y a Elue en Configuración › Usuarios
-para que nadie entre como ellos por curiosidad, no cargue documentos reales
+vigente. Asigne una **clave** a cada usuario con permisos (Cristian, Hernando y
+Elue) en Configuración › Usuarios para que nadie entre como ellos por curiosidad, no cargue documentos reales
 sensibles, y borre el proyecto al terminar la demostración. El ingreso tiene
 límite de tasa; las cookies son HttpOnly y Secure.
 
@@ -166,6 +173,12 @@ Para llevarlo a su propia infraestructura: exportar Firestore (raíz `sgc/`) y
 el bucket, crear un proyecto con `infra/crear-infraestructura.ps1 -Proyecto`,
 cambiar `GCP_PROJECT_ID` y desplegar con `deploy.ps1 -Proyecto`. El código no
 tiene nada atado al proyecto actual salvo los valores por defecto.
+
+La **cadena de valor** (estratégicos, operativos, de apoyo, de asesoría…) es el
+catálogo global «Cadena de valor» (`tipos_proceso`): cada proceso se clasifica en
+uno de sus grupos y el mapa de procesos dibuja un sector del anillo por grupo,
+en el orden del catálogo y con su etiqueta corta. Se agregan, renombran o
+reordenan desde Configuración, sin código.
 
 Antes de un uso real: login verdadero (ver «Identidad»), correo, recordatorios
 programados y la estructura real de procesos y sedes (la sigla del proceso y de

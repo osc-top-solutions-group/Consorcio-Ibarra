@@ -593,16 +593,30 @@ const claseFila = (fila) => (fila.activo === false ? 'opacity-50' : '');
 
 // ---------- Procesos y subprocesos (alimentan el mapa de procesos) ----------
 
+// La cadena de valor (estratégicos, operativos, apoyo, asesoría…) es el
+// catálogo `tipos_proceso`: se administra en Configuración, no en código.
+function SelectorTipoProceso({ tipos, value, onChange, className = 'input' }) {
+  return (
+    <select className={className} value={value || ''} onChange={(e) => onChange(e.target.value)}>
+      {!value && <option value="">Elija…</option>}
+      {tipos.map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+    </select>
+  );
+}
+const nombreTipoProceso = (tipos, id) => tipos.find((t) => t.id === id)?.nombre || id || '—';
+
 function TablaProcesos({ filas, onCrear, onActualizar, onInactivar, onReactivar, onError }) {
-  const [form, setForm] = useState({ codigo: '', nombre: '', tipo: 'apoyo', orden: 1, subprocesos: [] });
+  const [tipos, setTipos] = useState([]);
+  const [form, setForm] = useState({ codigo: '', nombre: '', tipo: '', orden: 1, subprocesos: [] });
   const [sub, setSub] = useState({ codigo: '', nombre: '' });
+  useEffect(() => { catalogo('tipos_proceso').then(setTipos).catch(() => setTipos([])); }, []);
 
   return (
     <div className="space-y-3">
       <form className="card grid gap-3 md:grid-cols-5" onSubmit={(e) => {
         e.preventDefault();
-        onCrear({ ...form, id: form.codigo.trim().toLowerCase(), codigo: form.codigo.trim().toUpperCase(), nombre: form.nombre.trim(), orden: Number(form.orden) })
-          .then((row) => { if (row) setForm({ codigo: '', nombre: '', tipo: 'apoyo', orden: 1, subprocesos: [] }); });
+        onCrear({ ...form, id: form.codigo.trim().toLowerCase(), codigo: form.codigo.trim().toUpperCase(), nombre: form.nombre.trim(), tipo: form.tipo || tipos[0]?.id, orden: Number(form.orden) })
+          .then((row) => { if (row) setForm({ codigo: '', nombre: '', tipo: '', orden: 1, subprocesos: [] }); });
       }}>
         <div>
           <label className="label">Código *</label>
@@ -615,11 +629,7 @@ function TablaProcesos({ filas, onCrear, onActualizar, onInactivar, onReactivar,
         </div>
         <div>
           <label className="label">Cadena de valor</label>
-          <select className="input" value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })}>
-            <option value="estrategico">Estratégico</option>
-            <option value="misional">Misional</option>
-            <option value="apoyo">Soporte</option>
-          </select>
+          <SelectorTipoProceso tipos={tipos} value={form.tipo || tipos[0]?.id} onChange={(tipo) => setForm({ ...form, tipo })} />
         </div>
         <div>
           <label className="label">Orden</label>
@@ -661,7 +671,7 @@ function TablaProcesos({ filas, onCrear, onActualizar, onInactivar, onReactivar,
           </thead>
           <tbody>
             {filas.map((p) => (
-              <FilaProceso key={p.id} proceso={p} onActualizar={onActualizar}
+              <FilaProceso key={p.id} proceso={p} tipos={tipos} onActualizar={onActualizar}
                 onInactivar={onInactivar} onReactivar={onReactivar} onError={onError} />
             ))}
           </tbody>
@@ -675,7 +685,7 @@ function TablaProcesos({ filas, onCrear, onActualizar, onInactivar, onReactivar,
 // documento suyo. Cambiarla aquí NO reescribe los códigos ya emitidos: eso se
 // hace explícitamente con "Actualizar códigos", que primero muestra qué
 // cambiaría y conserva cada código anterior en el histórico del documento.
-function FilaProceso({ proceso, onActualizar, onInactivar, onReactivar, onError }) {
+function FilaProceso({ proceso, tipos, onActualizar, onInactivar, onReactivar, onError }) {
   const [previo, setPrevio] = useState(null);
   const [ocupado, setOcupado] = useState(false);
   const [sub, setSub] = useState({ codigo: '', nombre: '' });
@@ -744,12 +754,8 @@ function FilaProceso({ proceso, onActualizar, onInactivar, onReactivar, onError 
         </td>
         <td className="text-xs">
           {edicion.editando ? (
-            <select className="input" value={b.tipo || 'apoyo'} onChange={(e) => edicion.cambiar({ tipo: e.target.value })}>
-              <option value="estrategico">Estratégico</option>
-              <option value="misional">Misional</option>
-              <option value="apoyo">Soporte</option>
-            </select>
-          ) : proceso.tipo}
+            <SelectorTipoProceso tipos={tipos} value={b.tipo} onChange={(tipo) => edicion.cambiar({ tipo })} />
+          ) : nombreTipoProceso(tipos, proceso.tipo)}
         </td>
         <td className="text-xs">
           {edicion.editando ? (

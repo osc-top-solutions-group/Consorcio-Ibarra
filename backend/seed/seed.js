@@ -20,11 +20,21 @@ const FORZAR = process.argv.includes('--force');
 // documento (p. ej. GCA-PRO-1-GLO), así que conviene fijar la estructura real
 // desde el panel ANTES de cargar documentos; estos son marcadores razonables
 // para una entidad municipal y se pueden editar o inactivar.
+// Cadena de valor: los grupos en que se clasifica cada proceso. Es un catálogo
+// (Configuración › Global › Cadena de valor): el municipio lo ajusta sin código.
+const TIPOS_PROCESO = [
+  ['estrategico', 'ESTRATEGICO', 'Procesos Estratégicos', 'Estratégicos', '1'],
+  ['operativo', 'OPERATIVO', 'Procesos Operativos', 'Operativos', '2'],
+  ['apoyo', 'APOYO', 'Procesos de Apoyo', 'Apoyo', '3'],
+  ['asesoria', 'ASESORIA', 'Procesos de Asesoría', 'Asesoría', '4']
+];
+
 const PROCESOS = [
   { id: 'dir', codigo: 'DIR', nombre: 'Direccionamiento Estratégico', tipo: 'estrategico', orden: 1, subprocesos: [] },
   { id: 'gca', codigo: 'GCA', nombre: 'Gestión de Calidad', tipo: 'estrategico', orden: 2, subprocesos: [] },
-  { id: 'gsc', codigo: 'GSC', nombre: 'Gestión de Servicios al Ciudadano', tipo: 'misional', orden: 1, subprocesos: [] },
-  { id: 'gop', codigo: 'GOP', nombre: 'Gestión de Obras y Proyectos', tipo: 'misional', orden: 2, subprocesos: [] },
+  { id: 'gsc', codigo: 'GSC', nombre: 'Gestión de Servicios al Ciudadano', tipo: 'operativo', orden: 1, subprocesos: [] },
+  { id: 'gop', codigo: 'GOP', nombre: 'Gestión de Obras y Proyectos', tipo: 'operativo', orden: 2, subprocesos: [] },
+  { id: 'gaj', codigo: 'GAJ', nombre: 'Gestión de Asesoría Jurídica', tipo: 'asesoria', orden: 1, subprocesos: [] },
   { id: 'gth', codigo: 'GTH', nombre: 'Gestión de Talento Humano', tipo: 'apoyo', orden: 1, subprocesos: [] },
   { id: 'gaf', codigo: 'GAF', nombre: 'Gestión Administrativa y Financiera', tipo: 'apoyo', orden: 2, subprocesos: [] },
   {
@@ -166,7 +176,16 @@ async function sembrarCatalogos() {
   const cuenta = {};
   const sumar = (k, ok) => { if (ok) cuenta[k] = (cuenta[k] || 0) + 1; };
 
+  for (const [id, codigo, nombre, etiqueta, orden] of TIPOS_PROCESO) {
+    sumar('tipos_proceso', await sembrar('tipos_proceso', id, { codigo, nombre, etiqueta, orden }));
+  }
   for (const p of PROCESOS) sumar('procesos', await sembrar('procesos', p.id, p));
+  // Migración: antes la cadena de valor era fija (estratégico, misional, apoyo)
+  // y vivía en código. «Misional» pasa a «operativo» en los procesos ya sembrados.
+  for (const p of await col('procesos').list((x) => x.tipo === 'misional')) {
+    await col('procesos').update(p.id, { tipo: 'operativo' });
+    console.log(`  migrado → proceso ${p.codigo}: misional → operativo`);
+  }
   for (const [codigo, nombre, permiteOriginal] of TIPOS) {
     sumar('tipos_documento', await sembrar('tipos_documento', codigo.toLowerCase(), { codigo, nombre, permiteOriginal }));
   }
